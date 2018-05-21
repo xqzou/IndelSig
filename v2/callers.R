@@ -7,13 +7,14 @@ call_indels <- function(df,decision,callers=list(),top_n = 1){
     calls <- c()
     for(caller in callers){ # For each extractor function
       if(df[i,]$Type == attr(caller,'Type')){
-        calls <- cbind(calls, caller(df[i,]) ) # Execute the extractor on the mutation to get a call
+        calls <- c(calls, caller(df[i,]) ) # Execute the extractor on the mutation to get a call
       }
     }
     ## Combine all the calls, and execute the decision function to make a final call.
-    colnames(calls) <- calls['call',]
-    final_call <- decision(calls,top_n) # Evaluate the calls
-    channels[i,1:3] <- final_call
+    calls <- matrix(calls,nrow=3)
+    colnames(calls) <- calls[1,]
+    rownames(calls) <- c('call','score','seq')
+    channels[i,1:3] <- decision(calls,top_n) # Evaluate the calls 
   }
   colnames(channels) <- c('Classification','Score','Seq')
   df <- cbind(df,channels)

@@ -26,7 +26,7 @@ extract_regions <- function(channel){
   return(result)
 }
 
-## Still looking up 'change' rather than 'change_pyr'
+## Looking up using 'change' rather than 'change_pyr'
 indel_parse <- function(str,type_operators,size_operators){
   ## Determine mutation type
   if(str[1] %in% type_operators){

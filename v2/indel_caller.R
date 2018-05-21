@@ -10,9 +10,9 @@ library(BSgenome.Hsapiens.UCSC.hg19)
 library(Biostrings)
 
 ## Load the caller and helper functions
-source('./prepare_indel_dataframe.R')
-source('./helpers.R')
-source('./callers.R')
+source('./v2/prepare_indel_dataframe.R')
+source('./v2/helpers.R')
+source('./v2/callers.R')
 
 ## Read in the data-set
 indel_data <- read.table("denovo_subclone_indels_final_freeze.txt",sep="\t",header = T, as.is = T)
@@ -32,10 +32,6 @@ indel_data_classified <- call_indels(df = indel_data_prepared_max100,
                                      callers = list(microhomology_mediated_deletion,
                                                     repeat_mediated_deletion,
                                                     repeat_insertion))
-
-
-
-
 write.table(indel.classified.df, "indel.classified.txt",sep = "\t",col.names = T, row.names = F, quote = F)
 
 
