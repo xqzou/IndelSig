@@ -3,11 +3,13 @@
 # [(+/-)ATCG]
 # [(+/-) (ATCG | (>,<,=) 1)](Rep (>,<,=) 1) | (Mh (>,<,=) 1)
 
+## Libraries
+library(dplyr)
+
 ## Dictionaries defining components 
 type_operators <- c('Ins'='+','Del'='-','Complex'='Com')
 size_operators <- c('>','<','=')
 keywords <- c('Microhomology-mediated'='Mh','Repeat-mediated'='Rep','Ins'='Ins','None'='Others')
-
 ####################################################################################################
 extract_regions <- function(channel){
   prime5_channel <- regexpr('^.+?\\[',channel)
@@ -42,7 +44,7 @@ indel_parse <- function(str,type_operators,size_operators){
   query <- ''
   for(i in seq_along(str)){ ## Size query
     if(str[i] %in% size_operators){
-      query <- paste('df["indel.length"]')
+      query <- paste('df["indel_length"]')
       for(j in i:length(str)){
         query <- paste0(query,str[j])
       }
@@ -58,7 +60,7 @@ indel_parse <- function(str,type_operators,size_operators){
       }
       else{
         ## Add in pyrimidine / purine lookup
-        query <- 'df["change"]==\"'
+        query <- 'df["change_pyr"]==\"'
         chars <- ''
         for(j in i:length(str)){
           chars <- paste0(chars,str[j]) 
@@ -96,26 +98,26 @@ prime_parse <- function(str,size_operators,keywords,region){
       ## If there are any size operators next to it, i.e > or <, then
       ## add an additional query for 'repcount' *will be bp in next version*
       if(any(size_op_check)){
-        query_1 <- paste0('df[["classification"]] == "',keyword,'" & ')
+        query_1 <- paste0('df[["Classification"]] == "',keyword,'" & ')
         query_2 <- paste0(str[size_op:length(str)],collapse = '')
         ops <- str[size_op:(size_op+1)]
         if('=' %in% ops == T & '>' %in% ops == F & '<' %in% ops == F ){
           query_2 <- gsub(pattern = '=',replacement = '==',x=query_2)
         }
-        query <- paste0(query_1,'as.numeric(df[["repcount"]])',query_2)
+        query <- paste0(query_1,'as.numeric(as.character(df[["Score"]]))',query_2)
       } 
-      else{ ## Otherwise, generate a simple query for the classification
-        query <- paste0('df[["classification"]] == \"',keyword,'\"')
+      else{ ## Otherwise, generate a simple query for the Classification
+        query <- paste0('df[["Classification"]] == \"',keyword,'\"')
       }
     } 
     else{ ## Otherwise, match the string exactly 
       chars_joined <- paste0(str,collapse = "")
       chars_joined <- paste0('\"',chars_joined,'\"')
       if(region==3){
-        query <- paste0('substr(df[["slice',region,'\"]],1,',length(str),') == ',chars_joined)
+        query <- paste0('substr(df[["slice',region,'_pyr\"]],1,',length(str),') == ',chars_joined)
       }
       else{
-        query <- paste0('substr(df[["slice',region,'\"]], nchar(df[["slice',region,'\"]]) - ',length(str),'+1,','nchar(df[["slice',region,'\"]])) == ',chars_joined)
+        query <- paste0('substr(df[["slice',region,'_pyr\"]], nchar(df[["slice',region,'_pyr\"]]) - ',length(str),'+1,','nchar(df[["slice',region,'_pyr\"]])) == ',chars_joined)
       }
     }
   }
@@ -123,7 +125,8 @@ prime_parse <- function(str,size_operators,keywords,region){
   return(result)
 }
 
-parse_channel <- function(df,str,show_queries=F,subset=F){
+parse_channel <- function(df,str,subset=F,id=F,verbose=F){
+  #browser()
   ## First generate the regions
   regions <- extract_regions(str)
   
@@ -138,10 +141,13 @@ parse_channel <- function(df,str,show_queries=F,subset=F){
   queries <- queries[queries!='']
   total_query <- paste(queries,collapse = ' & ')
   
-  if(show_queries) print(total_query)
+  if(verbose) print(c(total_query,indel_parsed$mutation_type))
   
   if(subset){
     df <- df[eval(parse(text=total_query)) & mut_type,]
+  }
+  else if(id){
+    df <- which(eval(parse(text=total_query)) & mut_type)
   }
   else{
     df[eval(parse(text=total_query)) & mut_type,'Subtype'] <- str
@@ -149,7 +155,7 @@ parse_channel <- function(df,str,show_queries=F,subset=F){
   return(df)
 }
 
-parse_channels <- function(channels,dataset,subset=F){
+parse_channels <- function(dataset,channels,subset=F,na.rm=F){
   result <- list()
   for(chan in channels){
     if(subset){
@@ -160,10 +166,80 @@ parse_channels <- function(channels,dataset,subset=F){
     }
   }
   
-  if(subset){return(result)} else {return(dataset)}
+  if(na.rm){
+    dataset <- dataset[!is.na(dataset$Subtype),]
+  }
+  
+  if(subset){
+    return(result)
+  } else {
+    return(dataset)}
 }
 
 
+assign_mutation_type <- function(df,groups,map=F){
+  if(all(grepl(pattern = '\\[*\\]',groups))==F){
+    groups <- gsub(pattern = '^',replacement = '[',groups)
+    groups <- gsub(pattern = '$',replacement = ']',groups)
+  }
+  channels <- unique(df$Subtype)
+  result <- NULL
+  for( i in seq_along(groups)){
+    if(map){
+      channels[match(df$Subtype[parse_channel(df,groups[i],id = T)],channels)] <- groups[i]
+      result <- channels
+      names(result) <- unique(df$Subtype)
+    }
+    else{
+      df[parse_channel(df,groups[i],id = T),'Mut_Type'] <- groups[i]
+      result <- df
+    }
+  }
+  return(result)
+}
 
 
+convert_to_labels <- function(channels){
+  fp <- gsub(pattern = 'Ins',replacement = 'Rep',x = channels)
+  for(i in seq_along(fp)){
+    par <- extract_regions(fp[i])
+    if(all(c('R','e','p')==par$prime3[1:3])){
+      if(par$prime3[4]=='='){
+        repnum <- as.numeric(paste0(par$prime3[5:length(par$prime3)],collapse = ''))
+        p <- indel_parse(par$indel,type_operators,size_operators)$query
+        if(repnum==0){
+          fp[i] <- gsub(pattern = 'Rep=0','NonRep',fp[i])
+        }
+        else if(grepl('[channel]',p)){
+          k <- regexpr(pattern = '[A-Z]+',text =p)
+          repstr <- substr(p,k[1],k[1]+attr(k,'match.length')-1)
+          repstr <- paste0(rep(repstr,repnum),collapse = '')
+          fp[i] <- gsub(paste0('Rep=',repnum),repstr,fp[i])
+        }
+      }
+    }
+  }
+  return(fp)
+}
 
+## Summarize indels
+summarize_channel_frequency <- function(df,...){
+  args <- list(...)
+  if(length(args)==0){
+    sum_arg <- 'n()'
+    #stop('no variable selected')
+  }
+  else{
+    all_args <- rep('',length(args))
+    for(i in seq_along(args)){
+      all_args[i] <- paste0(names(args[i]),' %in% c(\"',paste0(unlist(args[i]),collapse = '\",\"'),'\")')
+    }
+    sum_arg <- paste0('sum(',paste(all_args,collapse = ' & '),')')
+  }
+  print(sum_arg)
+  indel_catalog <- df %>%
+    group_by(Subtype,Mut_Type) %>%
+    summarize_('aggregate'=sum_arg) %>%
+    .[match(exp_channels,.$Subtype),]
+  return(indel_catalog)
+}

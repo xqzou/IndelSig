@@ -1,3 +1,4 @@
+source('v2/helpers.R')
 ################################################################################
 ## Main function
 ################################################################################
@@ -25,9 +26,9 @@ call_indels <- function(df,decision,callers=list(),top_n = 1){
 ## Decision Functions
 ################################################################################
 current_decision <- function(inputs,top_n=1){
-  scores <- inputs['score',]
+  scores <- inputs['score',,drop=FALSE]
   mode(scores) <- 'numeric'
-  ## If only call is made and it's nonzero, return it.
+  ## If only call is made and it's at least 0, return it.
   if(is.null(inputs)){
     return(cbind(call="None",score=0,seq=''))
   }
@@ -35,10 +36,10 @@ current_decision <- function(inputs,top_n=1){
     return(inputs)
   }
   ## If working with Del calls
-  else if(all(names(scores) %in% c('Microhomology-mediated','Repeat-mediated')) ){
+  else if(all(colnames(scores) %in% c('Microhomology-mediated','Repeat-mediated')) ){
     if(all(scores!=0)){  ## If all scores are nonzero
       ## If more repeat bases than microhomology bases, return Repeat-mediated
-      if(scores['Repeat-mediated']* nchar(inputs['seq','Repeat-mediated']) >= scores['Microhomology-mediated']){
+      if(scores[,'Repeat-mediated']* nchar(inputs['seq','Repeat-mediated']) >= scores[,'Microhomology-mediated']){
         return(inputs[,'Repeat-mediated'])
       }
       else{ ## Else return Mh
@@ -53,7 +54,7 @@ current_decision <- function(inputs,top_n=1){
     }
   }
   ## If working with Ins calls return Ins
-  else if(all(names(scores) %in% c('Ins'))){
+  else if(all(colnames(scores) %in% c('Ins'))){
     return(inputs[,'Ins'])
   }
 }
@@ -110,11 +111,6 @@ repeat_insertion <- function(inp){
 }
 attr(repeat_insertion,'Type') <- 'Ins'
 
-## Simple test function
-dummy_caller <- function(inp){
-  return(c(call='Repeat-mediated',score=0,seq='D'))
-}
-attr(dummy_caller,'Type') <- 'Del'
 
 
 

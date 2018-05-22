@@ -16,9 +16,16 @@ indel_plot_formatting <- theme(axis.text.x=element_text(angle=45, vjust=0.5, siz
 
 feature_barplot <- function(df,...){
   args <- list(...)
-  params <- list(x='Subtype',y='aggregate',fill='Type',x_labels=df$Subtype,x_order=df$Subtype,xlab='Indel Channels',ylab='Counts',group_color='',
-                ylim=c(0,1))
+  params <- list(x='Subtype',y='aggregate',fill='Mut_Type',x_labels=df$Subtype,
+                 x_order=df$Subtype,xlab='Indel Channels',ylab='Counts',group_color='',ylim=c(0,1))
   params <- modifyList(params,args)
+  
+  ## Set zeroes to visible
+  df[df==0] <- mean(df[[params$y]])*0.01
+  
+  ## Alter the legend ordering
+  df[[params$fill]] <- factor(df[[params$fill]],levels = unique(df[[params$fill]]))
+  
   p <- ggplot(df,aes_string(x=params$x,y=params$y,fill=params$fill)) + geom_bar(stat='identity',position = 'dodge') +
     xlab(label = params$xlab) + ylab(label= params$ylab)
   
@@ -28,7 +35,7 @@ feature_barplot <- function(df,...){
   }
   
   ## Relabel by x_labels
-  p <- p+scale_x_discrete(labels = params$x_labels)
+  p <- p+scale_x_discrete(limits = params$x_order,labels = params$x_labels)
   
   ## Color processing 
   if(nchar(params$group_color) > 0){
@@ -39,6 +46,3 @@ feature_barplot <- function(df,...){
   p <- p + indel_plot_formatting
   return(p)
 }
-
-
-
