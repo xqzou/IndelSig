@@ -15,10 +15,7 @@ indel_data_classified <- merge(indel_data_classified, samples_details, by="Sampl
 ## Filter by VAF.cal > 0.
 indel_data_classified <- indel_data_classified[indel_data_classified$VAF.Tum_Cal>=0.2,]
 
-
-
 #### Testing a set of channels! #####
-
 ## Set up a test set of channels
 exp_types <- c('+C','+T','-C','-T','->1','+>1')
 exp_channels <- c('[+C]A', '[+C]G','[+C]T', '[+C]Ins=1', '[+C]Ins=2','[+C]Ins>2',
@@ -28,12 +25,15 @@ exp_channels <- c('[+C]A', '[+C]G','[+C]T', '[+C]Ins=1', '[+C]Ins=2','[+C]Ins>2'
               '[+>1]Ins=0', '[+>1]Ins>0',
               '[->1]Others', '[->1]Rep>0','[->1]Mh')
 
+
+exp_channels <- c('[+TA]','[+>=10]','[-AT]')
+
 ## Parse the channels and assign them based on indel classifications 
 ## then assign a mutation type from 'exp_types', using pipes. 
 ## Then summarize the data over the control group and plot it
-indel_catalog <- indel_data_classified %>% 
+indel_data_classified %>% 
                  parse_channels(exp_channels,na.rm = T) %>%
                  assign_mutation_type(exp_types) %>%
-                 summarize_channel_frequency(Group='PAH') %>%
-                 feature_barplot(x_labels=convert_to_labels(.$Subtype))
+                 summarize_channel_frequency() %>%
+                 feature_barplot()
 

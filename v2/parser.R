@@ -203,18 +203,20 @@ convert_to_labels <- function(channels){
   fp <- gsub(pattern = 'Ins',replacement = 'Rep',x = channels)
   for(i in seq_along(fp)){
     par <- extract_regions(fp[i])
-    if(all(c('R','e','p')==par$prime3[1:3])){
-      if(par$prime3[4]=='='){
-        repnum <- as.numeric(paste0(par$prime3[5:length(par$prime3)],collapse = ''))
-        p <- indel_parse(par$indel,type_operators,size_operators)$query
-        if(repnum==0){
-          fp[i] <- gsub(pattern = 'Rep=0','NonRep',fp[i])
-        }
-        else if(grepl('[channel]',p)){
-          k <- regexpr(pattern = '[A-Z]+',text =p)
-          repstr <- substr(p,k[1],k[1]+attr(k,'match.length')-1)
-          repstr <- paste0(rep(repstr,repnum),collapse = '')
-          fp[i] <- gsub(paste0('Rep=',repnum),repstr,fp[i])
+    if(length(par$prime3) != 0){
+      if(all(c('R','e','p')==par$prime3[1:3])){
+        if(par$prime3[4]=='='){
+          repnum <- as.numeric(paste0(par$prime3[5:length(par$prime3)],collapse = ''))
+          p <- indel_parse(par$indel,type_operators,size_operators)$query
+          if(repnum==0){
+            fp[i] <- gsub(pattern = 'Rep=0','NonRep',fp[i])
+          }
+          else if(grepl('[channel]',p)){
+            k <- regexpr(pattern = '[A-Z]+',text =p)
+            repstr <- substr(p,k[1],k[1]+attr(k,'match.length')-1)
+            repstr <- paste0(rep(repstr,repnum),collapse = '')
+            fp[i] <- gsub(paste0('Rep=',repnum),repstr,fp[i])
+          }
         }
       }
     }

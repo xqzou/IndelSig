@@ -4,6 +4,7 @@
 # biocLite("BSgenome.Hsapiens.UCSC.hg19")
 library(BSgenome.Hsapiens.UCSC.hg19)
 library(Biostrings)
+library(magrittr)
 
 ## Load the caller and helper functions
 source('./v2/prepare_indel_dataframe.R')
